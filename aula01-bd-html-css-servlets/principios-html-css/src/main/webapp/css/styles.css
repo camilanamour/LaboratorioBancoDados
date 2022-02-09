@@ -1,0 +1,100 @@
+@charset "ISO-8859-1";
+
+body { /*Geral*/
+	background-color: #76EAFF;
+} 
+
+#menu ul { /*Associa pelo id (#)*/
+	padding: 0px;
+	margin: 0px;
+	list-style: none; /*Sem estilo de lista*/
+	background-color: #ECD6D5;
+	font-size: 18px;
+}
+
+#menu ul li{ /*No nível em todas as linhas*/
+	display: inline;
+}
+
+#menu ul li a{
+	font-size: 18px;
+	padding: 2px 10px; /*Horizontal; Vertical*/
+	display: inline-block; 
+	background-color: #ECD6D5;
+	color:black;
+	text-decoration: none; /*Decoração de texto*/
+	border-bottom: 3px solid #ECD6D5;
+}
+
+#menu ul li a:hover{
+	font-size: 18px;
+	background-color: #ECD6D5; /*Destaque A4A4A4*/
+	color: white;
+	border-bottom: 3px solid red;
+}
+
+input[type=submit] {
+	border: 4px solid green;
+	color: black;
+	background-color: white;
+	border-radius: 4px;
+	font-size: 20px;
+}
+
+input[type=submit]:hover { /*Quando passar o mouse*/
+	background-color: green;
+	color: white;
+}
+
+.container {
+	margin: auto; /*Deixar centralizado*/
+	width: 50%;
+	border: 7px solid gray;
+	border-radius: 50px; 
+	padding-bottom: 20px; /*margem dentro do container*/
+	box-shadow: 20px 20px 2px #766B5D; /*Sombrado e borrao*/
+}
+
+.title { /*Classe especifica (com ponto)*/
+	font-size: 28px;
+	color:black;
+}
+
+.input_data_id {
+	border:3px solid black;
+	border-radius: 4px;
+	height: 30px;
+	width: 50px;
+	font-size: 20px;
+}
+
+.input_data_date {
+	border:3px solid black;
+	border-radius: 4px;
+	height: 30px;
+	width: 170px;
+	font-size: 20px;
+}
+
+.input_data {
+	border:3px solid black;
+	border-radius: 4px;
+	height: 30px;
+	width: 300px;
+	font-size: 20px;
+}
+
+.table_round {
+	border: 1px solid black;
+	border-radius: 10px;
+}
+
+.th_dash {
+	border: 0.5px blue;
+	border-style: dashed;
+}
+
+.td_groove {
+	border: 0.5px solid red;
+	border-style: groove;
+}

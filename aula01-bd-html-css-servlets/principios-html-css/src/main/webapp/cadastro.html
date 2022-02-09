@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<link rel="stylesheet" href="./css/styles.css">
+<title>Cadastro Exemplo HTML</title>
+</head>
+<body>
+	<!-- Menu -->
+	<nav id="menu">
+		<!--  Nivel (ul); Itens (li); link (a) -->
+		<ul>
+			<li><a href="index.html">Home</a></li>
+			<li><a href="cadastro.html">Cadastro</a></li>
+		</ul>
+	</nav>
+<!-- 
+	<div align= "center">
+		<table class= "table_round">
+			-- Cabeça -- 
+			<thead>
+				<tr>
+					<th class= "th_dash"><b>#ID</b></th>
+					<th class= "th_dash"><b>Nome</b></th>
+					<th class= "th_dash"><b>Data de Nascimento</b></th>
+				</tr>
+			</thead>
+			-- Corpo --
+			<tbody>
+				<tr>
+					<td class= "td_groove">1</td>
+					<td class= "td_groove">Fulano</td>
+					<td class= "td_groove" align = "center">22/09/1982</td>
+				</tr>
+				<tr>
+					<td class= "td_groove">2</td>
+					<td class= "td_groove">Beltrano</td>
+					<td class= "td_groove" align = "center">12/04/1973</td>
+				</tr>
+				<tr>
+					<td class= "td_groove">3</td>
+					<td class= "td_groove">Ciclano</td>
+					<td class= "td_groove" align = "center">15/08/1992</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+-->
+	<br />
+	<br />
+	
+	<div class="container" align="center">
+		<!-- Formulario -->
+		<form action="http://www.leandrocolevati.com.br" method="post">
+			<!-- get= aberto na URL; post= oculto na URL -->
+			<p class="title"><b>Cadastro de Pessoas</b></p>
+			<table> 
+			<!-- tr=linha; td=colunas; um embaixo do outro; sem o tr campos lado a lado-->
+				<tr>
+					<td> 
+						<input class="input_data_id" type="number" min=0 step="1" id="id" name="id" 
+						placeholder="#ID" required="required">
+					</td>
+				</tr>
+				<tr>
+					<td> 
+						<input class="input_data" type="text" id="nome" name="nome" 
+						placeholder="Nome" required="required">
+					</td>
+				</tr>
+				<tr>
+					<td> 
+						<input class="input_data_date" type="date" id="dataNasc" name="dataNasc" 
+						placeholder="Data de Nascimento" required="required">
+					</td>
+				</tr>
+				<tr>
+					<td> 
+						<input type="submit" id="enviar" name="enviar" value="Enviar">
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+</body>
+</html>
