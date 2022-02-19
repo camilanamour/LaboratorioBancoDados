@@ -67,7 +67,7 @@ public class PessoaServlet extends HttpServlet {
 	// Despachante = mandar as informações para outra tela
 		RequestDispatcher rd = request.getRequestDispatcher("index.jsp");
 		request.setAttribute("pessoa", pessoa);
-		request.setAttribute("pessoa", pessoas);
+		request.setAttribute("pessoas", pessoas);
 		rd.forward(request, response); // Remonta o index conhecendo os atributos
 		// Conexão JSP <--> Servlet usando o tomcat como servidor
 	}
