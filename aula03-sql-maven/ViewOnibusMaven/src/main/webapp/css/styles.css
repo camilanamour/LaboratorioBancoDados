@@ -1,0 +1,27 @@
+@charset "ISO-8859-1";
+
+body{
+	background: #F8F8FF;
+}
+
+h1{
+	font-family: fantasy;
+	color: #48D1CC;
+}
+
+table{
+	border: 1px solid black;
+	font-size: 16px;
+	
+}
+
+thead{
+	background: #48D1CC;
+	color: #F8F8FF;
+}
+
+td{
+	border-left-width: 0;
+  	min-width: 120px;
+  	height: 18px;
+}
