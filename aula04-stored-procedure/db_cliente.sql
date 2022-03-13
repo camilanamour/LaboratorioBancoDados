@@ -59,8 +59,6 @@ AS
 			BREAK
 		END
 		SET @vezes = @vezes + 1
-		PRINT @valido_cpf
-		PRINT @vezes
 	END
 
 
