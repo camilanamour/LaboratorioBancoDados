@@ -40,29 +40,57 @@ public class RodadasDao implements IRodadasDao {
 		List<Jogo> jogos = new ArrayList<Jogo>();
 
 		Connection c = gDao.getConnection();
-		StringBuffer sql = new StringBuffer();
-		sql.append(" SELECT j.codJogo AS cod, t1.nomeTime AS timeA, t2.nomeTime AS timeB, j.golsTimeA, j.golsTimeB, CONVERT(CHAR(10),j.data_jogo,103) AS datas");
-		sql.append(" FROM jogos j, times t1, times t2");
-		sql.append(" WHERE t1.codTime = j.codTimeA");
-		sql.append(" AND t2.codTime = j.codTimeB");
-		sql.append(" AND j.data_jogo = ?");
+		int rodada = this.getRodada(c, 0, data);
+
+		if (rodada != 0) {
+			StringBuffer sql = new StringBuffer();
+			sql.append(" SELECT j.codJogo AS cod, t1.nomeTime AS timeA, t2.nomeTime AS timeB, j.golsTimeA, j.golsTimeB, CONVERT(CHAR(10),j.data_jogo,103) AS datas");
+			sql.append(" FROM jogos j, times t1, times t2");
+			sql.append(" WHERE t1.codTime = j.codTimeA");
+			sql.append(" AND t2.codTime = j.codTimeB");
+			sql.append(" AND j.rodada = ?");
+			sql.append(" ORDER BY j.data_jogo");
+
+			PreparedStatement ps = c.prepareStatement(sql.toString());
+			ps.setInt(1, rodada);
+
+			ResultSet rs = ps.executeQuery();
+			while (rs.next()) {
+				Jogo j = new Jogo();
+				j.setCodJogo(rs.getInt("cod"));
+				j.setTimeA(rs.getString("timeA"));
+				j.setTimeB(rs.getString("timeB"));
+				j.setGolsTimeA(rs.getInt("golsTimeA"));
+				j.setGolsTimeB(rs.getInt("golsTimeB"));
+				j.setDataJogo(rs.getString("datas"));
+
+				jogos.add(j);
+			}
+			ps.close();
+			rs.close();
+		} else {
+				throw new SQLException("Rodada não encontrada!");
+		}
 		
-		PreparedStatement ps = c.prepareStatement(sql.toString());
+		c.close();
+		return jogos;
+	}
+
+	@Override
+	public int getRodada(Connection c, int rodada, String data) throws SQLException, ClassNotFoundException {
+
+		String sql = "SELECT rodada FROM jogos WHERE data_jogo = ?";
+
+		PreparedStatement ps = c.prepareStatement(sql);
 		ps.setString(1, data);
 
 		ResultSet rs = ps.executeQuery();
-		while (rs.next()) {
-			Jogo j = new Jogo();
-			j.setCodJogo(rs.getInt("cod"));
-			j.setTimeA(rs.getString("timeA"));
-			j.setTimeB(rs.getString("timeB"));
-			j.setGolsTimeA(rs.getInt("golsTimeA"));
-			j.setGolsTimeB(rs.getInt("golsTimeB"));
-			j.setDataJogo(rs.getString("datas"));
-
-			jogos.add(j);
+		if (rs.next()) {
+			rodada = rs.getInt("rodada");
 		}
-		return jogos;
+		ps.close();
+		rs.close();
+		return rodada;
 	}
 
 }

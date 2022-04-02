@@ -21,13 +21,14 @@ FOREIGN KEY(codTime) REFERENCES times(codTime)
 )
 GO
 CREATE TABLE jogos(
-codJogo		INT	NOT NULL,
-codTimeA	INT	NOT NULL,
-codTimeB	INT	NOT NULL,
-golsTimeA	INT	NULL,
-golsTimeB	INT	NULL,
-data_jogo	DATE NULL,
-flag_jogou	BIT
+codJogo		INT		NOT NULL,
+codTimeA	INT		NOT NULL,
+codTimeB	INT		NOT NULL,
+golsTimeA	INT		NULL,
+golsTimeB	INT		NULL,
+data_jogo	DATE	NULL,
+rodada		INT		NULL,
+flag_jogou	BIT		NULL
 PRIMARY KEY(codJogo)
 FOREIGN KEY(codTimeA) REFERENCES times(codTime),
 FOREIGN KEY(codTimeB) REFERENCES times(codTime)
@@ -51,8 +52,8 @@ INSERT INTO times VALUES
 (15,'São Caetano','São Caetano do sul','Anacietto Campanella', 0, 0),
 (16,'São Paulo','São Paulo','Morumbi', 1, 0)
 
-
--- Dividir os times nos grupos
+GO
+-- DIVIDIR TIMES POR GRUPOS
 CREATE PROCEDURE sp_divide_times(@saida VARCHAR(50) OUTPUT)
 	AS
 		DELETE grupos 
@@ -120,13 +121,8 @@ CREATE PROCEDURE sp_divide_times(@saida VARCHAR(50) OUTPUT)
 		UPDATE times SET flag_alocada = 0 -- Reseta alocação
 		SET @saida = 'Times alocados com sucesso'
 			
-DECLARE @saida_teste VARCHAR(40)
-EXEC sp_divide_times @saida_teste OUTPUT
-PRINT @saida_teste
-
--- SELECT g.codTime, t.nomeTime, g.grupo FROM grupos g, times t WHERE g.codTime = t.codTime ORDER BY grupo
-
--- PARTIDAS
+GO
+-- PARTIDAS (Um jogo não pode ocorrer 2 vezes, mesmo em rodadas diferentes)
 CREATE PROCEDURE sp_partidas (@saida VARCHAR(40) OUTPUT)
 	AS
 		DECLARE @contador INT, @qtd INT, @qtdTimes INT, @cont INT, @cont_grp INT, @cod_time_p INT, @cod_time_s INT, @pos INT
@@ -183,8 +179,9 @@ CREATE PROCEDURE sp_partidas (@saida VARCHAR(40) OUTPUT)
 			SET @contador = @contador + 1
 		END	
 		EXEC sp_datas @saida OUTPUT
-		
--- DATAS RODADAS 
+
+GO	
+-- DATAS RODADAS (separar rodadas)
 CREATE PROCEDURE sp_datas (@saida VARCHAR(40) OUTPUT)
 AS
 		DECLARE @semanas INT, @dt_inicio_dom DATE, @dt_inicio_qua DATE, @dt_time_dom DATETIME, @dt_time_quarta DATETIME
@@ -207,7 +204,6 @@ AS
 		END
 
 		SET @rodadas = 1
-		-- UPDATE times SET flag_alocada = 0
 		WHILE(@rodadas<=12) -- 12 semanas
 		BEGIN		
 			SET @jogos = 1
@@ -230,107 +226,42 @@ AS
 					SELECT @timeA = codTimeA, @timeB = codTimeB, @flag_jogou = flag_jogou FROM jogos WHERE codJogo = @random_pos
 					IF(@flag_jogou = 0)
 					BEGIN
-						SELECT @flag_A = flag_alocada FROM times WHERE codTime = @timeA
-						SELECT @flag_B = flag_alocada FROM times WHERE codTime = @timeB
-						--IF(@flag_A = 0 AND @flag_B = 0)
-						--BEGIN
-							UPDATE times SET flag_alocada = 1 WHERE codTime = @timeA
-							UPDATE times SET flag_alocada = 1 WHERE codTime = @timeB
-
-							UPDATE jogos 
-							SET data_jogo = @data_rodada, flag_jogou = 1, golsTimeA = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT),	
-							golsTimeB = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT) WHERE codJogo = @random_pos
-
-							SET @ok = 1
-						--END
+						UPDATE jogos 
+						SET data_jogo = @data_rodada, flag_jogou = 1, rodada = @rodadas, golsTimeA = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT),	
+						golsTimeB = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT) WHERE codJogo = @random_pos
+						SET @ok = 1
 					END
 				END
 			SET @jogos = @jogos + 1
 			END
-			--UPDATE times SET flag_alocada = 0
 			SET @rodadas = @rodadas + 1
 		END
 		UPDATE jogos SET flag_jogou = 0 
 		SET @saida = 'Partidas Geradas com Sucesso' 
+
+-- TESTES
+DECLARE @saida_teste VARCHAR(40)
+EXEC sp_divide_times @saida_teste OUTPUT
+PRINT @saida_teste
+
+SELECT g.codTime, t.nomeTime, g.grupo FROM grupos g, times t WHERE g.codTime = t.codTime ORDER BY grupo
 
 DECLARE @saida VARCHAR(40)
 EXEC sp_partidas @saida OUTPUT
 PRINT @saida
 
-
---------------------- MANUTENÇÃO ----------------------
-CREATE PROCEDURE sp_datas (@saida VARCHAR(40) OUTPUT)
-AS
-		DECLARE @semanas INT, @dt_inicio_dom DATE, @dt_inicio_qua DATE, @dt_time_dom DATETIME, @dt_time_quarta DATETIME
-		DECLARE @datas TABLE (codData INT IDENTITY(1,1), dt_rodada DATE)
-
-		DECLARE @random_pos INT, @data_rodada DATE, @rodadas INT, @jogos INT, @ok BIT
-		DECLARE @timeA INT, @timeB INT, @flag_jogou BIT, @flag_A BIT, @flag_B BIT
-
-		SET @semanas = 1
-		SET @dt_inicio_dom = '2021-02-21'
-		SET @dt_inicio_qua = '2021-02-24'
-		WHILE (@semanas <= 12)
-		BEGIN
-			    -- Domingo e Quarta
-				SET @dt_time_dom = @dt_inicio_dom 
-				SET @dt_time_quarta = @dt_inicio_qua
-
-				INSERT INTO @datas (dt_rodada)
-				SELECT CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_dom))
-				
-				INSERT INTO @datas (dt_rodada)
-				SELECT CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_quarta))
-
-				SET @semanas = @semanas + 1
-		END
-
-		SET @rodadas = 1
-		WHILE(@rodadas<=12) -- 12 dias
-		BEGIN		
-			SET @jogos = 1
-			SELECT @data_rodada = dt_rodada FROM @datas WHERE codData = @rodadas
-			WHILE(@jogos <= 8) -- 8 jogos por semana
-			BEGIN
-				SET @ok = 0
-				-- Rodadas
-				WHILE(@ok = 0)
-				BEGIN
-					SET @random_pos = CAST(FLOOR(RAND()*(96-1+1)+1) AS INT)
-					SELECT @timeA = codTimeA, @timeB = codTimeB, @flag_jogou = flag_jogou FROM jogos WHERE codJogo = @random_pos
-					IF(@flag_jogou = 0)
-					BEGIN
-						SELECT @flag_A = flag_alocada FROM times WHERE codTime = @timeA
-						SELECT @flag_B = flag_alocada FROM times WHERE codTime = @timeB
-						IF(@flag_A = 0 AND @flag_B = 0)
-						BEGIN
-							UPDATE times SET flag_alocada = 1 WHERE codTime = @timeA
-							UPDATE times SET flag_alocada = 1 WHERE codTime = @timeB
-
-							UPDATE jogos 
-							SET data_jogo = @data_rodada, flag_jogou = 1, golsTimeA = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT),	
-							golsTimeB = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT) WHERE codJogo = @random_pos
-
-							SET @ok = 1
-						END
-					END
-				END
-			SET @jogos = @jogos + 1
-			END
-			UPDATE times SET flag_alocada = 0
-			SET @rodadas = @rodadas + 1
-		END
-		UPDATE jogos SET flag_jogou = 0 
-		SET @saida = 'Partidas Geradas com Sucesso' 
-
-
-SELECT * FROM jogos ORDER BY data_jogo
-
 SELECT t1.nomeTime As timeA, t2.nomeTime timeB, j.golsTimeA, j.golsTimeB, j.data_jogo 
 FROM jogos j, times t1, times t2 
 WHERE t1.codTime = j.codTimeA
 	AND t2.codTime = j.codTimeB
-	AND j.data_jogo = '2021-02-28'
+	AND j.rodada = 1
 ORDER BY j.data_jogo
 
+SELECT rodada 
+FROM jogos
+WHERE data_jogo = '2021-02-28'
+
 SELECT * FROM times
+SELECT * FROM jogos ORDER BY data_jogo
+SELECT * FROM jogos ORDER BY codJogo
+SELECT * FROM grupos
