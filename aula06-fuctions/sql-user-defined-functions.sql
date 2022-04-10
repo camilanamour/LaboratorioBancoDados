@@ -26,8 +26,10 @@ CREATE FUNCTION fn_qtd_baixo_valor()
 	BEGIN
 		DECLARE @soma INT
 		SELECT	@soma = COUNT(qtd_estoque) FROM Produtos WHERE qtd_estoque < 10
-		PRINT @soma
+		RETURN(@soma)
 	END
+
+	SELECT dbo.qtd_baixo_valor() AS Soma
 
 -- b)Fazer uma function que liste o código, o nome e a quantidade dos produtos que estão com o estoque 
 -- abaixo de um valor de entrada
