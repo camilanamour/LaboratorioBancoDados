@@ -27,8 +27,7 @@ codTimeB	INT		NOT NULL,
 golsTimeA	INT		NULL,
 golsTimeB	INT		NULL,
 data_jogo	DATE	NULL,
-rodada		INT		NULL,
-flag_jogou	BIT		NULL
+rodada		INT		NULL
 PRIMARY KEY(codJogo)
 FOREIGN KEY(codTimeA) REFERENCES times(codTime),
 FOREIGN KEY(codTimeB) REFERENCES times(codTime)
@@ -125,118 +124,340 @@ GO
 -- PARTIDAS (Um jogo não pode ocorrer 2 vezes, mesmo em rodadas diferentes)
 CREATE PROCEDURE sp_partidas (@saida VARCHAR(40) OUTPUT)
 	AS
-		DECLARE @contador INT, @qtd INT, @qtdTimes INT, @cont INT, @cont_grp INT, @cod_time_p INT, @cod_time_s INT, @pos INT
-		
-		-- GRUPO A --> começa 1; pula 4 = 5; até o final (16)
-		-- GRUPO C --> começa 5; pula 4 = 9; até o final (16)
-		-- GRUPO C --> começa 9; pula 4 = 13; até o final (16)
-
 		DELETE jogos
-		SET @pos = 1
-		SET @contador = 1
-		WHILE (@contador <= 3)
-		BEGIN
-			IF(@contador = 1) -- GRUPO A contra B, C, D
-			BEGIN SET @cont_grp = 1
-			END
-			IF(@contador = 2) -- GRUPO B contra C, D
-			BEGIN SET @cont_grp = 5
-			END
-			IF(@contador = 3) -- GRUPO C contra D
-			BEGIN SET @cont_grp = 9
-			END
-
-			SET @qtdTimes = 1
-			WHILE(@qtdTimes <= 4)
-			BEGIN
-				SET @qtd = 4 * @contador	
-			
-				WHILE (@cont_grp <= @qtd)
-				BEGIN
-					IF(@contador = 1)
-					BEGIN SET @cont = 5
-					END
-					IF(@contador = 2)
-					BEGIN SET @cont = 9
-					END
-					IF(@contador = 3)
-					BEGIN SET @cont = 13
-					END
-					SELECT @cod_time_p=codTime FROM grupos WHERE codGrupo=@cont_grp
-					
-					-- Outros grupos
-					WHILE(@cont <= 16)
-					BEGIN
-						SELECT @cod_time_s=codTime FROM grupos WHERE codGrupo=@cont
-						INSERT INTO jogos (codJogo, codTimeA, codTimeB, flag_jogou) VALUES (@pos, @cod_time_p, @cod_time_s, 0)
-						SET @pos = @pos + 1
-						SET @cont = @cont + 1
-					END
-					SET @cont_grp = @cont_grp + 1
-				END
-				SET @qtdTimes = @qtdTimes + 1
-			END
-			SET @contador = @contador + 1
-		END	
-		EXEC sp_datas @saida OUTPUT
-
-GO	
--- DATAS RODADAS (separar rodadas)
-CREATE PROCEDURE sp_datas (@saida VARCHAR(40) OUTPUT)
-AS
+		-- 2 dia => 1 Rodada
 		DECLARE @semanas INT, @dt_inicio_dom DATE, @dt_inicio_qua DATE, @dt_time_dom DATETIME, @dt_time_quarta DATETIME
 		DECLARE @datas TABLE (codData INT IDENTITY(1,1), dt_rodada_dom DATE, dt_rodada_quarta DATE)
-
-		DECLARE @random_pos INT, @data_rodada DATE, @rodadas INT, @jogos INT, @ok BIT
-		DECLARE @timeA INT, @timeB INT, @flag_jogou BIT, @flag_A BIT, @flag_B BIT
 
 		SET @semanas = 1
 		SET @dt_inicio_dom = '2021-02-21'
 		SET @dt_inicio_qua = '2021-02-24'
 		WHILE (@semanas <= 12)
 		BEGIN
-			    -- Domingo e Quarta
-				SET @dt_time_dom = @dt_inicio_dom 
-				SET @dt_time_quarta = @dt_inicio_qua
-				INSERT INTO @datas (dt_rodada_dom, dt_rodada_quarta)
-				SELECT CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_dom)), CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_quarta))
-				SET @semanas = @semanas + 1
+			-- Domingo e Quarta
+			SET @dt_time_dom = @dt_inicio_dom 
+			SET @dt_time_quarta = @dt_inicio_qua
+			INSERT INTO @datas (dt_rodada_dom, dt_rodada_quarta)
+			SELECT CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_dom)), CONVERT(DATE, DATEADD(WEEK, @semanas, @dt_time_quarta))
+			SET @semanas = @semanas + 1
 		END
 
-		SET @rodadas = 1
-		WHILE(@rodadas<=12) -- 12 semanas
-		BEGIN		
+		DECLARE @data_rodada DATE, @jogos INT, @reparticao INT, @cod INT, @timeA INT, @timeB INT, @vez INT
+
+		-- 1) Jogadas diretas				(A1 --> B1; A2 --> B2; A3 --> B3; A4 --> B4)
+		-- 2) Jogadas diretas (+ 1)			(A1 --> B2; A2 --> B3; A3 --> B4; A4 --> B1)
+		-- 3) Jogadas diretas (+ 2) E (- 2)	(A1 --> B3; A2 --> B4; A3 --> B1; A4 --> B2)
+		-- 4) Jogadas diretas (- 1)			(A1 --> B4; A2 --> B1; A3 --> B2; A4 --> B3)
+
+		SET @cod = 1
+		SET @vez = 1
+
+		WHILE(@vez <= 4)
+		BEGIN
 			SET @jogos = 1
-			WHILE(@jogos <= 8) -- 8 jogos por semana
+			WHILE(@jogos<=4)
 			BEGIN
-				-- dia da semana
-				IF(@jogos % 2 = 0) 
+				-- GRUPO A 
+				SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos
+				SET @reparticao = 0
+				WHILE (@reparticao < 3) -- 3 Repartições (A contra B = 0); (A contra C = 1); (A contra D = 2) 
 				BEGIN
-					SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = @rodadas
-				END
-				ELSE
-				BEGIN 
-					SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = @rodadas
-				END
-				SET @ok = 0
-				-- Rodadas
-				WHILE(@ok = 0)
-				BEGIN
-					SET @random_pos = CAST(FLOOR(RAND()*(96-1+1)+1) AS INT)
-					SELECT @timeA = codTimeA, @timeB = codTimeB, @flag_jogou = flag_jogou FROM jogos WHERE codJogo = @random_pos
-					IF(@flag_jogou = 0)
+					IF(@reparticao = 0)
 					BEGIN
-						UPDATE jogos 
-						SET data_jogo = @data_rodada, flag_jogou = 1, rodada = @rodadas, golsTimeA = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT),	
-						golsTimeB = CAST(FLOOR(RAND()*(5-1+1)+1) AS INT) WHERE codJogo = @random_pos
-						SET @ok = 1
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 4 -- contra GRUPO B
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 5 -- contra GRUPO B (B1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 5 -- contra GRUPO B (B2, B3, B4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) + 2 -- contra GRUPO B (B3, B4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 2 -- contra GRUPO B (B1, B2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 1 -- contra GRUPO B (B4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 1 -- contra GRUPO B (B1, B2, B3)
+							END
+						END
 					END
+					IF(@reparticao = 1)
+					BEGIN
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- contra GRUPO C
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 9 -- contra GRUPO C (C1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 9 -- contra GRUPO C (C2, C3, C4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) + 2 -- contra GRUPO C (C3, C4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 2 -- contra GRUPO C (C1, C2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 12) - 1 -- contra GRUPO C (C4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 1 -- contra GRUPO C (C1, C2, C3)
+							END
+						END
+					END
+					IF(@reparticao = 2)
+					BEGIN
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- contra GRUPO D
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 13 -- contra GRUPO D (D1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 13 -- contra GRUPO D (D2, D3, D4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 12) + 2 -- contra GRUPO D (D3, D4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 12) - 2 -- contra GRUPO D (D1, D2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_dom FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 16) - 1 -- contra GRUPO D (D4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 12) - 1 -- contra GRUPO D (D1, D2, D3)
+							END
+						END
+					END
+					INSERT INTO jogos (codJogo, codTimeA, codTimeB, golsTimeA, golsTimeB, data_jogo, rodada)
+					VALUES (@cod, @timeA, @timeB, 0, 0, @data_rodada,(@reparticao * 4) + @vez)
+					SET @cod = @cod + 1
+					SET @reparticao = @reparticao + 1
 				END
-			SET @jogos = @jogos + 1
+		
+				-- GRUPO D
+				SET @reparticao = 0
+				WHILE (@reparticao < 3) -- 3 Repartições (D contra C = 0); (D contra B = 1); (C contra B = 2) 
+				BEGIN
+					SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + 1 -- RODADA
+					IF(@reparticao = 0)
+					BEGIN
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- contra GRUPO C
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 9 -- contra GRUPO C (C1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 9 -- contra GRUPO C (C2, C3, C4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) + 2 -- contra GRUPO C (C3, C4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 2 -- contra GRUPO C (C1, C2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 12) - 1 -- contra GRUPO C (C4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 1 -- contra GRUPO C (C1, C2, C3)
+							END
+						END
+					END
+					IF(@reparticao = 1)
+					BEGIN
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 4 -- contra GRUPO B
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 5 -- contra GRUPO B (B1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 5 -- contra GRUPO B (B2, B3, B4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) + 2 -- contra GRUPO B (B3, B4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 2 -- contra GRUPO B (B1, B2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 12 -- GRUPO D
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 1 -- contra GRUPO B (B4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 1 -- contra GRUPO B (B1, B2, B3)
+							END
+						END
+					END
+					IF(@reparticao = 2)
+					BEGIN
+						IF(@vez = 1) -- Jogadas diretas
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- GRUPO C
+							SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 4 -- contra GRUPO B
+						END
+						IF(@vez = 2) -- Jogadas diretas + 1 
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- GRUPO C
+							IF(@jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = 5 -- contra GRUPO B (B1)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = @jogos + 5 -- contra GRUPO B (B2, B3, B4)
+							END
+						END
+						IF(@vez = 3) -- Jogadas diretas (+ 2) E (- 2)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- GRUPO C
+							IF(@jogos = 1 OR @jogos = 2)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) + 2 -- contra GRUPO B (B3, B4)
+							END
+							IF(@jogos = 3 OR @jogos = 4)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 2 -- contra GRUPO B (B1, B2)
+							END
+						END
+						IF(@vez = 4) -- Jogadas diretas (- 1)
+						BEGIN
+							SELECT @data_rodada = dt_rodada_quarta FROM @datas WHERE codData = (@reparticao * 4) + @vez -- RODADA
+							SELECT @timeA = codTime FROM grupos WHERE codGrupo = @jogos + 8 -- GRUPO C
+							IF(@jogos = 1)
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 8) - 1 -- contra GRUPO B (B4)
+							END
+							ELSE
+							BEGIN
+								SELECT @timeB = codTime FROM grupos WHERE codGrupo = (@jogos + 4) - 1 -- contra GRUPO B (B1, B2, B3)
+							END
+						END
+					END
+					INSERT INTO jogos (codJogo, codTimeA, codTimeB, golsTimeA, golsTimeB, data_jogo, rodada)
+					VALUES (@cod, @timeA, @timeB, 0, 0, @data_rodada, (@reparticao * 4) + @vez)
+					SET @cod = @cod + 1
+					SET @reparticao = @reparticao + 1
+				END
+				SET @jogos = @jogos + 1
 			END
-			SET @rodadas = @rodadas + 1
-		END
-		UPDATE jogos SET flag_jogou = 0 
+			SET @vez = @vez + 1
+		END 
 		SET @saida = 'Partidas Geradas com Sucesso' 
 
 -- TESTES
@@ -265,3 +486,6 @@ SELECT * FROM times
 SELECT * FROM jogos ORDER BY data_jogo
 SELECT * FROM jogos ORDER BY codJogo
 SELECT * FROM grupos
+
+
+		
