@@ -12,6 +12,14 @@ public class Situacao {
 	private int golsSofridos;
 	private int saldoGols;
 	private int pontos;
+	private int rebaixado;
+	
+	public int getRebaixado() {
+		return rebaixado;
+	}
+	public void setRebaixado(int rebaixado) {
+		this.rebaixado = rebaixado;
+	}
 	public int getCodTime() {
 		return codTime;
 	}

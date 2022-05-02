@@ -64,6 +64,7 @@ public class FinaisDao implements IFinaisDao {
 		sql.append(" FROM situacao");
 		sql.append(" ORDER BY pontos DESC, vitorias DESC, gols_marcados DESC, saldo_gols DESC");
 
+		int cont = 1;
 		PreparedStatement ps = c.prepareStatement(sql.toString());
 
 		ResultSet rs = ps.executeQuery();
@@ -81,7 +82,12 @@ public class FinaisDao implements IFinaisDao {
 			s.setSaldoGols(rs.getInt("saldo_gols"));
 			s.setPontos(rs.getInt("pontos"));
 			
+			if(cont >= 15) {
+				s.setRebaixado(1);
+			}
+			
 			campeonato.add(s);
+			cont++;
 		}
 		return campeonato;
 	}

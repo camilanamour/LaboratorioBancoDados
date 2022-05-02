@@ -190,17 +190,32 @@
 				</thead>
 				<tbody>	
 				<c:forEach items="${todos}" var="s">
-					<tr>
-						<td><c:out value="${s.nomeTime }"></c:out></td>
-						<td align="center"><c:out value="${s.numJogosDisputados }"></c:out></td>
-						<td align="center"><c:out value="${s.vitorias }"></c:out></td>
-						<td align="center"><c:out value="${s.empates }"></c:out></td>
-						<td align="center"><c:out value="${s.derrotas }"></c:out></td>
-						<td align="center"><c:out value="${s.golsMarcados }"></c:out></td>
-						<td align="center"><c:out value="${s.golsSofridos }"></c:out></td>
-						<td align="center"><c:out value="${s.saldoGols }"></c:out></td>
-						<td align="center"><c:out value="${s.pontos }"></c:out></td>
+					<c:if test="${s.rebaixado == 1}">
+					<tr bgcolor="#708090">
+							<td><c:out value="${s.nomeTime }"></c:out></td>
+							<td align="center"><c:out value="${s.numJogosDisputados }"></c:out></td>
+							<td align="center"><c:out value="${s.vitorias }"></c:out></td>
+							<td align="center"><c:out value="${s.empates }"></c:out></td>
+							<td align="center"><c:out value="${s.derrotas }"></c:out></td>
+							<td align="center"><c:out value="${s.golsMarcados }"></c:out></td>
+							<td align="center"><c:out value="${s.golsSofridos }"></c:out></td>
+							<td align="center"><c:out value="${s.saldoGols }"></c:out></td>
+							<td align="center"><c:out value="${s.pontos }"></c:out></td>
 					</tr>
+					</c:if>
+					<c:if test="${s.rebaixado != 1}">
+					<tr>
+							<td><c:out value="${s.nomeTime }"></c:out></td>
+							<td align="center"><c:out value="${s.numJogosDisputados }"></c:out></td>
+							<td align="center"><c:out value="${s.vitorias }"></c:out></td>
+							<td align="center"><c:out value="${s.empates }"></c:out></td>
+							<td align="center"><c:out value="${s.derrotas }"></c:out></td>
+							<td align="center"><c:out value="${s.golsMarcados }"></c:out></td>
+							<td align="center"><c:out value="${s.golsSofridos }"></c:out></td>
+							<td align="center"><c:out value="${s.saldoGols }"></c:out></td>
+							<td align="center"><c:out value="${s.pontos }"></c:out></td>
+					</tr>
+					</c:if>
 				</c:forEach>
 				</tbody>
 			</table>
